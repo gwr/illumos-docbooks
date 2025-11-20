@@ -385,7 +385,10 @@ currently defined by D.</para>
 	</row>
 	<row>
 		<entry colname="colspec3"><para><literal>uintptr_t caller</literal></para></entry>
-		<entry colname="colspec4"><para>The program counter location of the current thread just before entering the current probe.</para></entry>
+		<entry colname="colspec4">
+			<para>The program counter of the current thread just before entering the current probe, if the
+				current thread was in kernel-mode. Otherwise, 0.</para>
+		</entry>
 	</row>
 	<row>
 		<entry colname="colspec3"><para><literal>chipid_t chip</literal></para></entry>
@@ -517,7 +520,10 @@ currently defined by D.</para>
 	</row>
 	<row>
 		<entry colname="colspec3"><para><literal>uint_t stackdepth</literal></para></entry>
-		<entry colname="colspec4"><para>The current thread's stack frame depth at probe firing time.</para></entry>
+		<entry colname="colspec4">
+			<para>The current thread's kernel stack frame depth, if the thread was in kernel-mode when the
+				current probe fired. Otherwise, 0.</para>
+		</entry>
 	</row>
 	<row>
 		<entry colname="colspec3"><para><literal>id_t tid</literal></para></entry>
@@ -536,6 +542,13 @@ currently defined by D.</para>
 		</entry>
 	</row>
 	<row>
+		<entry colname="colspec3"><para><literal>uint64_t ucaller</literal></para></entry>
+		<entry colname="colspec4">
+			<para>The current thread's user-mode program counter when the current probe fired. If the
+				current thread has no user-mode context, 0.</para>
+		</entry>
+	</row>
+	<row>
 		<entry colname="colspec3"><para><literal>uid_t uid</literal></para></entry>
 		<entry colname="colspec4"><para>The real user ID of the current process.</para></entry>
 	</row>
@@ -545,6 +558,13 @@ currently defined by D.</para>
 			<para>The current thread's saved user-mode register values at probe firing time. Use
 				of the <literal>uregs[]</literal> array is discussed in
 				<xref linkend="chp-user" />.</para>
+		</entry>
+	</row>
+	<row>
+		<entry colname="colspec3"><para><literal>uint32_t ustackdepth</literal></para></entry>
+		<entry colname="colspec4">
+			<para>The current thread's user stack frame depth when the current probe fired, if the thread
+				has a user-mode context. Otherwise, 0.</para>
 		</entry>
 	</row>
 	<row>
