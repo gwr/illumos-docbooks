@@ -152,6 +152,34 @@
 		<xsl:text>\fi&#10;</xsl:text>
 	</xsl:template>
 
+	<!-- dblatex 0.3.11 does not support DocBook task elements. -->
+	<xsl:template match="task">
+		<xsl:if test="title">
+			<xsl:call-template name="makeheading">
+				<xsl:with-param name="level">
+					<xsl:call-template name="get.sect.level"/>
+				</xsl:with-param>
+			</xsl:call-template>
+		</xsl:if>
+		<xsl:apply-templates/>
+	</xsl:template>
+
+	<xsl:template match="task/title"/>
+
+	<xsl:template match="tasksummary|taskprerequisites">
+		<xsl:apply-templates/>
+	</xsl:template>
+
+	<xsl:template match="stepalternatives">
+		<xsl:text>\begin{itemize}&#10;</xsl:text>
+		<xsl:apply-templates select="step"/>
+		<xsl:text>\end{itemize}&#10;</xsl:text>
+	</xsl:template>
+
+	<xsl:template match="task" mode="xref-to">
+		<xsl:apply-templates select="title" mode="xref"/>
+	</xsl:template>
+
 	<!-- Docbook's formalpara - dblatex's version fixed for memoir -->
 	<xsl:template match="formalpara">
 		<xsl:text>&#10;\textbf{ </xsl:text>

@@ -1,8 +1,8 @@
-<chapter xml:id="idmappingtasks"><title>Identity Mapping Administration (Tasks)</title><para>This chapter describes the identity mapping service that maps Windows security identifiers (SIDs) to Unix user identifiers (UIDs) and group identifiers (GIDs). The chapter also includes instructions on how to manage name-based mappings.</para><itemizedlist><para>This chapter covers the following topics:</para><listitem><para><xref linkend="idmapquickstart"/></para>
-</listitem><listitem><para><xref linkend="mapusergroupidentities"/></para>
-</listitem><listitem><para><xref linkend="createidmappingstrategy"/></para>
-</listitem><listitem><para><xref linkend="managedirbasedusergroupmapstm"/></para>
-</listitem><listitem><para><xref linkend="manageusergroupmapstm"/></para>
+<chapter xmlns:xl="http://www.w3.org/1999/xlink" xml:id="idmappingtasks"><title>Identity Mapping Administration (Tasks)</title><para>This chapter describes the identity mapping service that maps Windows security identifiers (SIDs) to Unix user identifiers (UIDs) and group identifiers (GIDs). The chapter also includes instructions on how to manage name-based mappings.</para><itemizedlist><para>This chapter covers the following topics:</para><listitem><para><xref linkend="idmapquickstart" xrefstyle="select:title"/></para>
+</listitem><listitem><para><xref linkend="mapusergroupidentities" xrefstyle="select:title"/></para>
+</listitem><listitem><para><xref linkend="createidmappingstrategy" xrefstyle="select:title"/></para>
+</listitem><listitem><para><xref linkend="managedirbasedusergroupmapstm" xrefstyle="select:title"/></para>
+</listitem><listitem><para><xref linkend="manageusergroupmapstm" xrefstyle="select:title"/></para>
 </listitem>
 </itemizedlist><para>The <command>idmapd</command> service can run in the global zone or in non-global zones. However, if the Trusted Extensions software is enabled, the <command>idmapd</command> service <emphasis>must</emphasis> run in the global zone.</para>
 <para>Many of the tasks in this section require that you:</para>
