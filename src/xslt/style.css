@@ -26,6 +26,7 @@ body {
 	color: #333;
 	font-family: "EB Garamond", serif;
 	font-size: 16pt;
+	font-variant-numeric: lining-nums;
 	margin: 0;
 	position: relative;
 	padding: 10px 15px 20px 15px;
@@ -78,7 +79,7 @@ code, pre, samp, kbd {
 	font-size: 0.9em;
 }
 
-.refentrytitle {
+.manual-reference {
 	font-family: "Source Code Pro", monospace;
 	font-size: 0.9em;
 }
