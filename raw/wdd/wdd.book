@@ -27,6 +27,7 @@
 <!ENTITY block SYSTEM "block.xml">
 <!ENTITY scsi SYSTEM "scsi.xml">
 <!ENTITY scsihba SYSTEM "scsihba.xml">
+<!ENTITY scsa-v3 SYSTEM "scsa-v3.xml">
 <!ENTITY gld SYSTEM "gld.xml">
 <!ENTITY usb SYSTEM "usb.xml">
 <!ENTITY loading SYSTEM "loading.xml">
@@ -108,11 +109,12 @@
 			<listitem><para><xref linkend="block-34861" /> describes drivers for a block-oriented devices.</para></listitem>
 			<listitem><para><xref linkend="scsi-36812" /> outlines the Sun Common SCSI Architecture (SCSA) and the requirements for SCSI target drivers.</para></listitem>
 			<listitem><para><xref linkend="scsihba-32898" /> explains how to apply SCSA to SCSI Host Bus Adapter (HBA) drivers.</para></listitem>
+			<listitem><para><xref linkend="scsa-v3" /> describes modern SCSA HBA configuration and device-management interfaces.</para></listitem>
 			<listitem><para><xref linkend="gld-1" /> describes the Generic LAN driver (GLD), a illumos network driver that uses STREAMS technology and the Data Link Provider Interface (DLPI).</para></listitem>
 			<listitem><para><xref linkend="usb-1" /> describes how to write a client USB device driver using the USBA&nbsp;2.0 framework.</para></listitem>
 		</itemizedlist>
 	</partintro>
-	&character;&block;&scsi;&scsihba;&gld;&usb;
+	&character;&block;&scsi;&scsihba;&scsa-v3;&gld;&usb;
 </part>
 <part>
 	<title>Building a Device Driver</title>

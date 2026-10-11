@@ -1,0 +1,371 @@
+<chapter xml:id="scsa-v3">
+<title>Sun Common SCSI Architecture Version 3 (SCSAv3)</title>
+
+<para>This chapter describes the modern configuration and device-management
+interfaces commonly associated with the third version of the Sun Common SCSI
+Architecture (SCSAv3). These interfaces extend the established SCSA command
+transport model described in <xref linkend="scsihba-32898" />. They do not
+replace the <citerefentry><refentrytitle>scsi_pkt</refentrytitle><manvolnum>9S</manvolnum></citerefentry>
+transport contract between target drivers and HBA drivers.</para>
+
+<para>This chapter is provisional. It is separate from
+<xref linkend="scsihba-32898" /> so that the modern interfaces can be
+described coherently while the eventual organization of the SCSA material is
+decided.</para>
+
+<sect1 xml:id="scsa-v3-overview">
+<title>Relationship to Traditional SCSA</title>
+
+<para>Traditional SCSA documentation describes an HBA transport using small
+integer target and logical-unit addresses. An HBA can clone its transport
+structure for each target when it needs per-target state or a more complex
+private address. Device configuration is based on probing possible target and
+logical-unit addresses. Current interfaces call this the SCSI Parallel
+Interface (SPI) addressing model.</para>
+
+<para>The modern model retains the transport entry points but adds framework
+support for more complex topologies and dynamic discovery. Its principal
+features are:</para>
+
+<itemizedlist>
+<listitem><para>separate initiator-port (iport) device nodes below the HBA;</para></listitem>
+<listitem><para>string unit addresses and per-device HBA-private state;</para></listitem>
+<listitem><para>framework-managed maps of iports and targets;</para></listitem>
+<listitem><para>dynamic creation and removal of device-tree nodes; and</para></listitem>
+<listitem><para>packet completion through SCSA so that the framework can
+observe events such as changes in logical-unit configuration.</para></listitem>
+</itemizedlist>
+
+<para>Not every driver uses every modern interface. For example, a driver can
+use iport nodes while retaining cloned transport structures. Such combinations
+are useful for existing drivers, but new SAS HBA drivers should normally use
+the iport and complex-addressing model described here.</para>
+</sect1>
+
+<sect1 xml:id="scsa-v3-topology">
+<title>HBA and Initiator-Port (iport) Topology</title>
+
+<para>The modern model separates controller-wide HBA state from SCSI
+iport state. The top-level HBA node represents resources associated
+with the controller, such as register mappings and interrupts. Its SCSI-facing
+children are iports. Each iport
+represents a collection of attached devices and has its own
+<citerefentry><refentrytitle>scsi_hba_tran</refentrytitle><manvolnum>9S</manvolnum></citerefentry>
+structure.</para>
+
+<para>An iport is a child of the HBA node but binds to the same driver.
+Creation of an iport therefore causes the driver's
+<citerefentry><refentrytitle>attach</refentrytitle><manvolnum>9E</manvolnum></citerefentry>
+entry point to be called for the iport node. Removal causes its
+<citerefentry><refentrytitle>detach</refentrytitle><manvolnum>9E</manvolnum></citerefentry>
+entry point to be called. The driver distinguishes a top-level HBA attachment
+from an iport attachment with
+<citerefentry><refentrytitle>scsi_hba_iport_unit_address</refentrytitle><manvolnum>9F</manvolnum></citerefentry>,
+which returns <literal>NULL</literal> for the top-level HBA.</para>
+
+<para>The <literal>SCSI_HBA_HBA</literal> flag to
+<citerefentry><refentrytitle>scsi_hba_attach_setup</refentrytitle><manvolnum>9F</manvolnum></citerefentry>
+declares that all direct SCSI-facing children of the HBA node are iports. A
+driver whose HBA node acts both as an initiator and as the parent of iports
+must not set this flag.</para>
+
+<sect2 xml:id="scsa-v3-static-iports">
+<title>Static Initiator-Ports (iports)</title>
+
+<para>A driver with a fixed set of iports registers each port with
+<citerefentry><refentrytitle>scsi_hba_iport_register</refentrytitle><manvolnum>9F</manvolnum></citerefentry>.
+An iport need not correspond directly to a physical connector. For example, a
+controller that presents both firmware-managed logical devices and physical
+devices can provide separate logical and physical iports.</para>
+</sect2>
+
+<sect2 xml:id="scsa-v3-dynamic-iports">
+<title>Dynamic Initiator-Ports (iports)</title>
+
+<para>A driver whose iports appear and disappear dynamically uses an
+iport map. SAS drivers can also use a phy map to group physical lanes into
+ports. Changes in the phy map can then cause corresponding entries to be added
+to or removed from the iport map. The framework creates or removes iport nodes
+and invokes the driver's normal attachment entry points.</para>
+
+<para>See <citerefentry><refentrytitle>iport</refentrytitle><manvolnum>9</manvolnum></citerefentry>
+and
+<citerefentry><refentrytitle>scsi_hba_iportmap_create</refentrytitle><manvolnum>9F</manvolnum></citerefentry>
+for the iport-map and phy-map interfaces.</para>
+
+<para>The current framework implementation processes iport-map and phy-map
+configuration serially. This differs from target maps, which can configure or
+unconfigure different target addresses concurrently.</para>
+</sect2>
+</sect1>
+
+<sect1 xml:id="scsa-v3-addressing">
+<title>Complex Addressing and Per-Device State</title>
+
+<para>The traditional
+<citerefentry><refentrytitle>scsi_address</refentrytitle><manvolnum>9S</manvolnum></citerefentry>
+representation contains integer <literal>a_target</literal> and
+<literal>a_lun</literal> fields. These fields are insufficient for transports
+whose addresses contain values such as worldwide names or other
+transport-specific components.</para>
+
+<para>An HBA selects complex addressing by passing
+<literal>SCSI_HBA_ADDR_COMPLEX</literal> to
+<citerefentry><refentrytitle>scsi_hba_attach_setup</refentrytitle><manvolnum>9F</manvolnum></citerefentry>.
+The HBA must then treat
+<citerefentry><refentrytitle>scsi_address</refentrytitle><manvolnum>9S</manvolnum></citerefentry>
+as opaque except for its transport pointer. It obtains the corresponding
+<citerefentry><refentrytitle>scsi_device</refentrytitle><manvolnum>9S</manvolnum></citerefentry>
+with
+<citerefentry><refentrytitle>scsi_address_device</refentrytitle><manvolnum>9F</manvolnum></citerefentry>
+and obtains the device's string unit address with
+<citerefentry><refentrytitle>scsi_device_unit_address</refentrytitle><manvolnum>9F</manvolnum></citerefentry>.</para>
+
+<para>During
+<citerefentry><refentrytitle>tran_tgt_init</refentrytitle><manvolnum>9E</manvolnum></citerefentry>,
+the HBA can translate the unit address and its properties into a private
+representation. It associates that state with the
+<literal>scsi_device</literal> by calling
+<citerefentry><refentrytitle>scsi_device_hba_private_set</refentrytitle><manvolnum>9F</manvolnum></citerefentry>.
+Other transport entry points retrieve the state with
+<citerefentry><refentrytitle>scsi_device_hba_private_get</refentrytitle><manvolnum>9F</manvolnum></citerefentry>.
+The HBA releases the state during
+<citerefentry><refentrytitle>tran_tgt_free</refentrytitle><manvolnum>9E</manvolnum></citerefentry>.</para>
+
+<para>This model replaces the need to clone
+<literal>scsi_hba_tran</literal> solely to obtain
+<literal>tran_tgt_private</literal> and <literal>tran_sd</literal>.
+<literal>SCSI_HBA_TRAN_CLONE</literal> remains supported for compatibility but
+is deprecated for new drivers.</para>
+</sect1>
+
+<sect1 xml:id="scsa-v3-discovery">
+<title>Target Discovery</title>
+
+<para>A target map represents the SCSI and SCSI Management Protocol (SMP)
+targets visible through an initiator-port (iport). The HBA reports its
+observations to the map,
+and the SCSA framework performs the corresponding device-tree configuration
+and unconfiguration after the reported topology has stabilized. A target map
+is created on an iport, not on the top-level HBA node.</para>
+
+<sect2 xml:id="scsa-v3-target-reporting">
+<title>Reporting Target Observations</title>
+
+<para>Target maps support two reporting modes:</para>
+
+<variablelist>
+<varlistentry>
+<term>Full-set reporting</term>
+<listitem><para>The driver brackets a complete observation with
+<citerefentry><refentrytitle>scsi_hba_tgtmap_set_begin</refentrytitle><manvolnum>9F</manvolnum></citerefentry>
+and
+<citerefentry><refentrytitle>scsi_hba_tgtmap_set_end</refentrytitle><manvolnum>9F</manvolnum></citerefentry>,
+adding each observed address with
+<citerefentry><refentrytitle>scsi_hba_tgtmap_set_add</refentrytitle><manvolnum>9F</manvolnum></citerefentry>.
+The framework determines which addresses were added and removed. This mode is
+appropriate when individual hardware notifications can be lost.</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>Per-address reporting</term>
+<listitem><para>The driver reports reliable individual additions and removals
+with
+<citerefentry><refentrytitle>scsi_hba_tgtmap_tgt_add</refentrytitle><manvolnum>9F</manvolnum></citerefentry>
+and
+<citerefentry><refentrytitle>scsi_hba_tgtmap_tgt_remove</refentrytitle><manvolnum>9F</manvolnum></citerefentry>.</para></listitem>
+</varlistentry>
+</variablelist>
+
+<para>When it creates a target map, a driver specifies a stabilization
+interval and an initial-enumeration synchronization interval.</para>
+</sect2>
+
+<sect2 xml:id="scsa-v3-target-callbacks">
+<title>Target Activation and Deactivation Callbacks</title>
+
+<para>A driver can supply optional activation and deactivation callbacks when
+it calls
+<citerefentry><refentrytitle>scsi_hba_tgtmap_create</refentrytitle><manvolnum>9F</manvolnum></citerefentry>.
+It can also supply a private value that SCSA passes to both callbacks.</para>
+
+<para>The activation callback runs asynchronously after the driver reports a
+new target address and before a target driver binds to that address. The
+callback receives the address, target type, and a pointer to the target's
+private value. It can replace that value with state that SCSA will pass to the
+later deactivation callback.</para>
+
+<para>The deactivation callback normally runs after the target driver has
+detached. It can also run when device configuration fails or when an address
+is added and removed before it stabilizes. Its reason argument is one of:</para>
+
+<variablelist>
+<varlistentry>
+<term><literal>SCSI_TGT_DEACT_RSN_GONE</literal></term>
+<listitem><para>The target is no longer reported.</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><literal>SCSI_TGT_DEACT_RSN_CFG_FAIL</literal></term>
+<listitem><para>Configuration of the target failed. Returning
+<literal>B_TRUE</literal> requests another discovery attempt, but does not
+guarantee that one will occur. A driver should otherwise return
+<literal>B_FALSE</literal>.</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><literal>SCSI_TGT_DEACT_RSN_UNSTBL</literal></term>
+<listitem><para>The target was added and removed during the stabilization
+interval.</para></listitem>
+</varlistentry>
+</variablelist>
+
+<para>The current target-map implementation can invoke activation or
+deactivation callbacks for different target addresses concurrently. A driver
+must synchronize access to shared HBA or iport state and must not assume that
+callbacks for separate addresses are serialized.</para>
+</sect2>
+
+<sect2 xml:id="scsa-v3-target-map-teardown">
+<title>Target-Map Teardown</title>
+
+<para><citerefentry><refentrytitle>scsi_hba_tgtmap_destroy</refentrytitle><manvolnum>9F</manvolnum></citerefentry>
+stops new reports and waits for stabilization and map-owned configuration,
+unconfiguration, and callback work. It deactivates all remaining targets
+before it returns. The driver must prevent other threads from using the map
+concurrently with destruction or retaining the map handle after destruction
+frees it.</para>
+</sect2>
+
+<sect2 xml:id="scsa-v3-lun-scanning">
+<title>Logical-Unit Scanning</title>
+
+<para>The
+<citerefentry><refentrytitle>scsi_hba_tgtmap_scan_luns</refentrytitle><manvolnum>9F</manvolnum></citerefentry>
+function requests framework-managed discovery of the logical units associated
+with a target. The framework issues <literal>REPORT LUNS</literal> and
+configures newly reported logical units while removing logical units that are
+no longer reported.</para>
+</sect2>
+
+<sect2 xml:id="scsa-v3-self-identifying">
+<title>Self-Identifying HBA Drivers</title>
+
+<para>An HBA that discovers and dynamically creates its SCSI children is
+self-identifying. Such a driver can be installed in the
+<literal>scsi-self-identifying</literal> driver class. This allows target
+drivers to provide a common configuration stub rather than naming every
+self-identifying parent driver individually.</para>
+</sect2>
+</sect1>
+
+<sect1 xml:id="scsa-v3-packets">
+<title>Packet Allocation and Completion</title>
+
+<para>The modern configuration model continues to use
+<citerefentry><refentrytitle>scsi_pkt</refentrytitle><manvolnum>9S</manvolnum></citerefentry>
+and the traditional transport entry points. Two newer packet-interface
+families are important to current HBA drivers but are not unique to
+SCSAv3.</para>
+
+<sect2 xml:id="scsa-v3-packet-allocation">
+<title>Framework-Managed Packet and DMA Allocation</title>
+
+<para>An HBA can implement
+<citerefentry><refentrytitle>tran_setup_pkt</refentrytitle><manvolnum>9E</manvolnum></citerefentry>
+and
+<citerefentry><refentrytitle>tran_teardown_pkt</refentrytitle><manvolnum>9E</manvolnum></citerefentry>
+instead of implementing the traditional
+<literal>tran_init_pkt</literal>, <literal>tran_destroy_pkt</literal>,
+<literal>tran_dmafree</literal>, and <literal>tran_sync_pkt</literal>
+operations. SCSA then manages the packet cache, DMA allocation, and DMA
+breakup, while the HBA initializes its private packet state and programs the
+DMA cookies supplied in the packet.</para>
+</sect2>
+
+<sect2 xml:id="scsa-v3-packet-completion">
+<title>Framework-Observed Completion</title>
+
+<para>After filling in the packet's completion information, a current HBA
+driver calls
+<citerefentry><refentrytitle>scsi_hba_pkt_comp</refentrytitle><manvolnum>9F</manvolnum></citerefentry>
+instead of invoking <literal>pkt_comp</literal> directly. Use of
+<literal>scsi_hba_pkt_comp</literal> is mandatory for an HBA that implements
+<literal>tran_setup_pkt</literal>. It also allows SCSA to observe sense data
+that indicates a change in the reported logical units of a target.</para>
+
+<para>The target driver's completion callback can occur after
+<literal>scsi_hba_pkt_comp</literal> returns and can execute on another thread
+or CPU. An HBA must not depend on direct, synchronous transfer of control to
+the target driver's callback.</para>
+</sect2>
+</sect1>
+
+<sect1 xml:id="scsa-v3-mpxio">
+<title>MPxIO Paths and Device Properties</title>
+
+<para>For an HBA participating in MPxIO, each physical initiator-port (iport)
+is a separate physical HCI transport. A path through that transport is distinct
+from the identity of the device reached through the path. The
+<literal>scsi_device_prop_*</literal> interfaces let an HBA access or update
+properties associated with either the device or the path without depending on
+private multipathing data structures.</para>
+
+<para>This distinction matters when interpreting unit-address and transport
+properties during <literal>tran_tgt_init</literal>. A complete description of
+MPxIO policy and virtual-HCI operation is outside the scope of this
+chapter.</para>
+</sect1>
+
+<sect1 xml:id="scsa-v3-transition">
+<title>Choosing an Interface Model</title>
+
+<para>Existing drivers can combine traditional and modern mechanisms, and
+such combinations remain supported. Documentation and new-driver design
+should nevertheless keep the following distinctions clear:</para>
+
+<itemizedlist>
+<listitem><para><literal>SCSI_HBA_ADDR_COMPLEX</literal> replaces cloned
+transports as the preferred way to represent complex addresses and maintain
+per-device HBA state.</para></listitem>
+<listitem><para><literal>SCSI_HBA_HBA</literal> describes the relationship
+between an HBA node and its initiator-port (iport) children; it does not by
+itself select an
+address representation.</para></listitem>
+<listitem><para>Static iport registration and dynamic iport maps are
+alternative ways to describe the set of iports.</para></listitem>
+<listitem><para>Target maps replace legacy target enumeration for drivers that
+use framework-managed discovery.</para></listitem>
+<listitem><para><literal>tran_setup_pkt</literal> is an alternative packet and
+DMA allocation model, not a prerequisite for using iports or complex
+addressing.</para></listitem>
+</itemizedlist>
+
+<para>For new SAS HBA drivers,
+<citerefentry><refentrytitle>scsi_hba_attach_setup</refentrytitle><manvolnum>9F</manvolnum></citerefentry>
+recommends the combination of <literal>SCSI_HBA_HBA</literal> and
+<literal>SCSI_HBA_ADDR_COMPLEX</literal>. See
+<citerefentry><refentrytitle>iport</refentrytitle><manvolnum>9</manvolnum></citerefentry>
+for the current overview of the iport, phy-map, iport-map, and target-map
+interfaces.</para>
+</sect1>
+
+<sect1 xml:id="scsa-v3-references">
+<title>References</title>
+
+<itemizedlist>
+<listitem><para><link xl:href="https://illumos.org/opensolaris/ARChive/PSARC/2008/675/">PSARC/2008/675, SCSI_HBA_ADDR_COMPLEX SCSA Data Structure Linkage</link>
+introduces complex addressing and per-device HBA-private state.</para></listitem>
+<listitem><para><link xl:href="https://illumos.org/opensolaris/ARChive/PSARC/2008/337/">PSARC/2008/337, scsi-self-identifying</link>
+introduces the driver class used by SCSA nexus drivers that dynamically create
+child nodes.</para></listitem>
+<listitem><para><link xl:href="https://illumos.org/opensolaris/ARChive/PSARC/2009/125/">PSARC/2009/125, scsi_device Property Interfaces</link>
+defines interfaces for device and path properties and unit-address
+retrieval.</para></listitem>
+<listitem><para><link xl:href="https://illumos.org/opensolaris/ARChive/PSARC/2009/033/">PSARC/2009/033, scsi_hba_pkt_comp(9F)</link>
+introduces framework-observed packet completion.</para></listitem>
+<listitem><para><link xl:href="https://illumos.org/opensolaris/ARChive/PSARC/2005/680/">PSARC/2005/680, New scsi_hba_tran Entry Points</link>
+introduces framework-managed packet allocation.</para></listitem>
+<listitem><para><link xl:href="https://illumos.org/opensolaris/ARChive/PSARC/2006/240/">PSARC/2006/240, SCSA DMA Enhancement</link>
+extends framework-managed packet allocation to DMA allocation and
+breakup.</para></listitem>
+</itemizedlist>
+</sect1>
+</chapter>

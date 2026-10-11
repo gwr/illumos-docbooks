@@ -37,7 +37,9 @@ the target and HBA components.</para><note><para>Understanding SCSI target drive
 to writing effective SCSI HBA drivers. For information on SCSI target drivers,
 see <xref linkend="scsi-36812" />.
 Target driver developers can also benefit from reading this chapter. </para>
-</note><para>The host bus adapter driver is responsible for performing the following
+<para>For modern HBA configuration and device-management interfaces,
+including initiator ports (iports), complex addressing, and target maps, see
+<xref linkend="scsa-v3" />.</para></note><para>The host bus adapter driver is responsible for performing the following
 tasks:</para><itemizedlist><listitem><para>Managing host bus adapter hardware</para>
 </listitem><listitem><para>Accepting SCSI commands from the SCSI target driver</para>
 </listitem><listitem><para>Transporting the commands to the specified SCSI target device</para>
@@ -87,7 +89,10 @@ shows typical transport entry points and function calls.</para>
 	</mediaobject>
 </figure>
 </sect1><sect1 xml:id="scsihba-16"><title>SCSA HBA Interfaces</title><para>SCSA HBA interfaces include HBA entry points, HBA data structures, and
-an HBA framework.</para><sect2 xml:id="scsihba-17"><title>SCSA HBA Entry Point Summary</title><para><indexterm><primary>SCSI HBA driver</primary><secondary>entry points summary</secondary></indexterm><indexterm><primary>SCSA</primary><secondary>interfaces</secondary></indexterm><indexterm><primary>entry points</primary><secondary>SCSA HBA summary</secondary></indexterm>SCSA defines a number of HBA driver entry
+an HBA framework.</para><note><para>The interfaces in this section describe the
+traditional HBA model. For modern HBA and iport topology, see
+<xref linkend="scsa-v3-topology" />. For complex addressing and per-device
+state, see <xref linkend="scsa-v3-addressing" />.</para></note><sect2 xml:id="scsihba-17"><title>SCSA HBA Entry Point Summary</title><para><indexterm><primary>SCSI HBA driver</primary><secondary>entry points summary</secondary></indexterm><indexterm><primary>SCSA</primary><secondary>interfaces</secondary></indexterm><indexterm><primary>entry points</primary><secondary>SCSA HBA summary</secondary></indexterm>SCSA defines a number of HBA driver entry
 points. These entry points are listed in the following table. The entry points
 are called by the system when a target driver instance connected to the HBA
 driver is configured. The entry points are also called when the target driver
@@ -576,7 +581,11 @@ to point to the <varname role="structname">scsi_device</varname> structure befor
 HBA driver  <function>tran_tgt_init</function> entry point is called. The
 driver requests cloning by passing the <literal>SCSI_HBA_TRAN_CLONE</literal> flag
 to  <citerefentry><refentrytitle>scsi_hba_attach_setup</refentrytitle><manvolnum>9F</manvolnum></citerefentry>. The following figure illustrates the HBA data structures
-for cloning transport operations.</para>
+for cloning transport operations.</para><para>Transport cloning remains
+supported for compatibility, but is deprecated for new drivers. See
+<xref linkend="scsa-v3-addressing" /> for the complex-addressing and
+per-device-state interfaces that replace this use of cloned transport
+structures.</para>
 <figure xml:id="scsihba-fig-28">
 <title>Cloning Transport Operation</title>
 <mediaobject>
@@ -872,7 +881,10 @@ cleanup if necessary.</para><programlisting>i = scsi_hba_attach_setup(dip, &amp;
 if (i != DDI_SUCCESS) {
     /* do error recovery */
     return (DDI_FAILURE);
-}</programlisting>
+}</programlisting><para>Modern HBA drivers can use additional attachment
+flags to describe complex addressing and separate initiator-port nodes. See
+<xref linkend="scsa-v3-topology" /> and
+<xref linkend="scsa-v3-addressing" />.</para>
 </sect4><sect4 xml:id="scsihba-45"><title>Register Mapping</title><para>The driver should map in its device's registers. The driver need to
 specify the following items:</para><itemizedlist><listitem><para>Register set index</para>
 </listitem><listitem><para>Data access characteristics of the device</para>
@@ -1050,6 +1062,12 @@ that are callable through the <citerefentry><refentrytitle>scsi_hba_tran</refent
 <sect2 xml:id="scsihba-52">
 <title>Target Driver Instance Initialization</title>
 <para>The following sections describe target entry points.</para>
+<note><para>The examples below use traditional integer target and logical-unit
+addresses. An HBA using complex addressing must treat
+<citerefentry><refentrytitle>scsi_address</refentrytitle><manvolnum>9S</manvolnum></citerefentry>
+as opaque and use per-device state as described in
+<xref linkend="scsa-v3-addressing" />. For framework-managed target
+discovery, see <xref linkend="scsa-v3-discovery" />.</para></note>
 <sect3 xml:id="scsihba-53">
 <title><function>tran_tgt_init</function> Entry Point</title>
 <para><indexterm><primary>SCSI HBA driver</primary><secondary>driver instance initialization</secondary></indexterm><indexterm><primary>SCSI HBA driver entry points</primary><secondary><function>tran_tgt_init</function> function</secondary></indexterm>The <citerefentry><refentrytitle>tran_tgt_init</refentrytitle><manvolnum>9E</manvolnum></citerefentry> entry point enables the HBA to allocate and initialize
@@ -1122,7 +1140,10 @@ isp_tran_tgt_free(
 </sect2>
 <sect2 xml:id="scsihba-56">
 <title>Resource Allocation</title>
-<para>The following sections discuss resource allocation.</para>
+<para>The following sections discuss resource allocation using the traditional
+HBA-managed packet and DMA interfaces. Current drivers can instead use the
+framework-managed interfaces described in
+<xref linkend="scsa-v3-packet-allocation" />.</para>
 <sect3 xml:id="scsihba-57">
 <title><function>tran_init_pkt</function> Entry Point</title>
 <para><indexterm><primary>SCSI HBA driver</primary><secondary>resource allocation</secondary></indexterm><indexterm><primary><function>tran_init_pkt</function> entry point</primary><secondary>SCSI HBA drivers</secondary></indexterm><indexterm><primary>SCSI HBA driver entry points</primary><secondary><function>tran_init_pkt</function> function</secondary></indexterm>The <citerefentry><refentrytitle>tran_init_pkt</refentrytitle><manvolnum>9E</manvolnum></citerefentry> entry point allocates and
@@ -1715,6 +1736,10 @@ synchronized before the target driver's command completion callback is performed
 can take considerable time. Typically, the target driver calls functions such
 as  <citerefentry><refentrytitle>biodone</refentrytitle><manvolnum>9F</manvolnum></citerefentry> and
 possibly  <citerefentry><refentrytitle>scsi_transport</refentrytitle><manvolnum>9F</manvolnum></citerefentry> to begin a new command.</para>
+<para>Current HBA drivers should report completion through
+<citerefentry><refentrytitle>scsi_hba_pkt_comp</refentrytitle><manvolnum>9F</manvolnum></citerefentry>
+rather than invoking the target driver's callback directly. See
+<xref linkend="scsa-v3-packet-completion" />.</para>
 <para>The interrupt handler must return <returnvalue>DDI_INTR_CLAIMED</returnvalue> if
 this interrupt is claimed by this driver. Otherwise, the handler returns <returnvalue>DDI_INTR_UNCLAIMED</returnvalue>.</para>
 <para>The following example shows an interrupt handler for the SCSI HBA <filename>isp</filename> driver. The <varname role="structfield">caddr_t</varname> parameter is
@@ -2245,6 +2270,8 @@ driver by callback.</para>
 <title>Dynamic Reconfiguration</title>
 <indexterm><primary>SCSI HBA driver</primary><secondary sortas="hotplug">and hotplugging</secondary></indexterm>
 <indexterm><primary>hotplugging</primary><secondary>and SCSI HBA driver</secondary></indexterm>
+<note><para>Modern HBA drivers can report additions and removals through
+framework-managed target maps. See <xref linkend="scsa-v3-discovery" />.</para></note>
 <para>To support the minimal set of hot-plugging operations, drivers might
 need to implement support for bus <emphasis>quiesce</emphasis>, bus <emphasis>unquiesce</emphasis>, and bus <emphasis>reset</emphasis>. The <citerefentry><refentrytitle>scsi_hba_tran</refentrytitle><manvolnum>9S</manvolnum></citerefentry> structure supports these
 operations. If quiesce, unquiesce, or reset are not required by hardware,
@@ -2295,6 +2322,8 @@ driver class as SCSI, such as:</para>
 for that HBA instance. A particular property is created only if no existing
 property of the same name is already attached to the HBA instance. This restriction
 avoids overriding any default property values in an HBA configuration file.</para>
+<note><para>For properties associated with a SCSI device or an MPxIO path, see
+<xref linkend="scsa-v3-mpxio" />.</para></note>
 <para><indexterm><primary>properties</primary><secondary>SCSI HBA properties</secondary></indexterm><indexterm><primary><function>ddi_prop_get_int</function> function</primary></indexterm>An HBA driver must use  <citerefentry><refentrytitle>ddi_prop_get_int</refentrytitle><manvolnum>9F</manvolnum></citerefentry> to retrieve each property.
 The HBA driver then modifies or accepts the default value of the properties
 to configure its specific operation.</para>

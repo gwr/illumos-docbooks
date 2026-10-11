@@ -44,7 +44,10 @@ the hardware vendor.</para>
 programming interface for the transmission of SCSI commands from a target
 driver to a host bus adapter driver. This interface is independent of the
 type of host bus adapter hardware, the platform, the processor architecture,
-and the SCSI command being transported across the interface.</para><para>Conforming to the SCSA enables the target driver to pass SCSI commands
+and the SCSI command being transported across the interface.</para><note><para>
+Modern HBA configuration and device-management interfaces commonly associated
+with SCSAv3 are described in <xref linkend="scsa-v3" />.
+</para></note><para>Conforming to the SCSA enables the target driver to pass SCSI commands
 to target devices without knowledge of the hardware implementation of the
 host bus adapter.</para><para>The SCSA conceptually separates building the SCSI command from transporting
 the  command with data across the SCSI bus. The architecture defines the software
@@ -380,6 +383,15 @@ autoconfiguration routines <citerefentry><refentrytitle>_init</refentrytitle><ma
 <indexterm xml:id="scsi-ix487"><primary><function>probe</function> entry point</primary><secondary>SCSI target drivers</secondary></indexterm>
 SCSI target devices are not self-identifying, so target drivers must have a <citerefentry><refentrytitle>probe</refentrytitle><manvolnum>9E</manvolnum></citerefentry> routine. This routine must
 determine whether the expected type of device is present and responding.</para>
+<note><para>With SCSAv3, an HBA can discover targets and create their device
+nodes dynamically. A target driver can still use
+<citerefentry><refentrytitle>scsi_probe</refentrytitle><manvolnum>9F</manvolnum></citerefentry>
+to verify that a logical unit is present and supported. When the HBA uses
+complex addressing, the target driver must not inspect the
+<literal>a_target</literal> or <literal>a_lun</literal> fields of
+<citerefentry><refentrytitle>scsi_address</refentrytitle><manvolnum>9S</manvolnum></citerefentry>.
+See <xref linkend="scsa-v3-discovery" /> and
+<xref linkend="scsa-v3-addressing" />.</para></note>
 <para>The general structure and the return codes of the  <citerefentry><refentrytitle>probe</refentrytitle><manvolnum>9E</manvolnum></citerefentry> routine are the same as the
 structure and return codes for other device drivers. SCSI target drivers must
 use the  <citerefentry><refentrytitle>scsi_probe</refentrytitle><manvolnum>9F</manvolnum></citerefentry> routine in their  <citerefentry><refentrytitle>probe</refentrytitle><manvolnum>9E</manvolnum></citerefentry> entry point.  <citerefentry><refentrytitle>scsi_probe</refentrytitle><manvolnum>9F</manvolnum></citerefentry> sends a SCSI
